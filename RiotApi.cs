@@ -67,7 +67,15 @@ public class Api
     }
 
     public async Task<string[]> GetPlayerMatches(
-        string playerId, int? start = null, int? count = null
+        string playerId
+    ) => await GetPlayerMatches(playerId, null, null);
+
+    public async Task<string[]> GetPlayerMatches(
+        string playerId, int? count
+    ) => await GetPlayerMatches(playerId, null, count);
+
+    public async Task<string[]> GetPlayerMatches(
+        string playerId, int? start, int? count
     )
     {
         if (string.IsNullOrEmpty(playerId))
@@ -85,6 +93,23 @@ public class Api
         if (!response.IsSuccessStatusCode)
             throw new RequestErrorException(response.StatusCode, "");
         return await response.Content.ReadFromJsonAsync<string[]>();
+    }
+
+    public async Task<Match> GetMatch(string matchId)
+    {
+        if (string.IsNullOrEmpty(matchId))
+            throw new ArgumentNullException(nameof(matchId));
+        
+        if (limiter is not null)
+            await limiter.ControlRequest();
+
+        var response = await get(
+            "/lol/match/v5/matches/", matchId
+        );
+
+        if (!response.IsSuccessStatusCode)
+            throw new RequestErrorException(response.StatusCode, "");
+        return await response.Content.ReadFromJsonAsync<Match>();
     }
 
     private async Task<HttpResponseMessage> get(params object[] data)
