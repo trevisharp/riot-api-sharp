@@ -12,8 +12,6 @@ namespace RiotApi;
 
 using Jsons;
 using Exceptions;
-using System.Net.Http.Headers;
-using System.Reflection.Metadata;
 
 public class Api
 {
