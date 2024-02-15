@@ -3,7 +3,6 @@
  */
 using System;
 using System.IO;
-using System.Net;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Json;
@@ -16,12 +15,14 @@ using Exceptions;
 
 public class Api
 {
-    private readonly HttpClient http;
-
     public readonly string ApiKey;
+    private readonly HttpClient http;
+    private readonly RateLimit limiter;
 
-    public Api(ApiKey apiKey, Server server)
+    public Api(ApiKey apiKey, Server server, RateLimit limiter = null)
     {
+        this.limiter = limiter;
+
         this.ApiKey = apiKey.key;
         var service = server switch
         {
@@ -29,6 +30,7 @@ public class Api
             Server.Asia => "asia",
             Server.Europe => "europe",
             Server.Esports => "esports",
+            Server.Sea => "sea",
             _ => throw new InvalidRegionException()
         };
         var url = $"https://{service}.api.riotgames.com/";
@@ -39,8 +41,10 @@ public class Api
     
     public async Task<string> GetPlayerId(string gameName, string tagLine)
     {
-        const string basePath = "/riot/account/v1/accounts/by-riot-id";
+        if (limiter is not null)
+            await limiter.ControlRequest();
 
+        const string basePath = "/riot/account/v1/accounts/by-riot-id";
         if (string.IsNullOrEmpty(gameName))
             throw new ArgumentNullException(nameof(gameName));
 
@@ -54,10 +58,26 @@ public class Api
         if (!response.IsSuccessStatusCode)
             throw new RequestErrorException(response.StatusCode, "");
         
-        var json = await response.Content.ReadFromJsonAsync<Player>();
-        return json.Puuid;
+        var obj = await response.Content.ReadFromJsonAsync<Player>();
+        return obj.Puuid;
     }
 
+    public async Task<string[]> GetPlayerMatches(string playerId)
+    {
+        if (limiter is not null)
+            await limiter.ControlRequest();
+
+        const string basePath = "/lol/match/v5/matches/by-puuid";
+        if (string.IsNullOrEmpty(playerId))
+            throw new ArgumentNullException(nameof(playerId));
+
+        var response = await get(basePath, playerId, "ids");
+        if (!response.IsSuccessStatusCode)
+            throw new RequestErrorException(response.StatusCode, "");
+        
+        return await response.Content.ReadFromJsonAsync<string[]>();
+    }
+    
     private async Task<HttpResponseMessage> get(params object[] data)
     {
         var path = buildPath(data);

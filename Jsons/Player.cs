@@ -3,6 +3,9 @@
  */
 namespace RiotApi.Jsons;
 
+/// <summary>
+/// Represents a Player data.
+/// </summary>
 public class Player
 {
     public string Puuid { get; set; }

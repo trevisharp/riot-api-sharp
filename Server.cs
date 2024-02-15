@@ -11,5 +11,6 @@ public enum Server : byte
     Americas = 0,
     Asia = 1,
     Europe = 2,
-    Esports = 3
+    Sea = 3,
+    Esports = 4
 }
