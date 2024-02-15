@@ -20,15 +20,15 @@ public class Api
 
     public readonly string ApiKey;
 
-    public Api(ApiKey apiKey, Region region)
+    public Api(ApiKey apiKey, Server server)
     {
         this.ApiKey = apiKey.key;
-        var service = region switch
+        var service = server switch
         {
-            Region.Americas => "americas",
-            Region.Asia => "asia",
-            Region.Europe => "europe",
-            Region.Esports => "esports",
+            Server.Americas => "americas",
+            Server.Asia => "asia",
+            Server.Europe => "europe",
+            Server.Esports => "esports",
             _ => throw new InvalidRegionException()
         };
         var url = $"https://{service}.api.riotgames.com/";
@@ -51,7 +51,7 @@ public class Api
             tagLine = tagLine.Replace("#", "");
 
         var response = await get(basePath, gameName, tagLine);
-        if (response.IsSuccessStatusCode)
+        if (!response.IsSuccessStatusCode)
             throw new RequestErrorException(response.StatusCode, "");
         
         var json = await response.Content.ReadFromJsonAsync<Player>();

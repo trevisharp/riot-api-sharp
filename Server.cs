@@ -4,9 +4,9 @@
 namespace RiotApi;
 
 /// <summary>
-/// The region that filter the data per regions or e-sports data.
+/// The region that request are made.
 /// </summary>
-public enum Region : byte
+public enum Server : byte
 {
     Americas = 0,
     Asia = 1,
