@@ -12,6 +12,8 @@ namespace RiotApi;
 
 using Jsons;
 using Exceptions;
+using System.Net.Http.Headers;
+using System.Reflection.Metadata;
 
 public class Api
 {
@@ -41,10 +43,6 @@ public class Api
     
     public async Task<string> GetPlayerId(string gameName, string tagLine)
     {
-        if (limiter is not null)
-            await limiter.ControlRequest();
-
-        const string basePath = "/riot/account/v1/accounts/by-riot-id";
         if (string.IsNullOrEmpty(gameName))
             throw new ArgumentNullException(nameof(gameName));
 
@@ -54,49 +52,86 @@ public class Api
         if (tagLine.Contains("#"))
             tagLine = tagLine.Replace("#", "");
 
-        var response = await get(basePath, gameName, tagLine);
+        if (limiter is not null)
+            await limiter.ControlRequest();
+
+        var response = await get(
+            "/riot/account/v1/accounts/by-riot-id", 
+            gameName, tagLine
+        );
+
         if (!response.IsSuccessStatusCode)
             throw new RequestErrorException(response.StatusCode, "");
-        
         var obj = await response.Content.ReadFromJsonAsync<Player>();
         return obj.Puuid;
     }
 
-    public async Task<string[]> GetPlayerMatches(string playerId)
+    public async Task<string[]> GetPlayerMatches(
+        string playerId, int? start = null, int? count = null
+    )
     {
+        if (string.IsNullOrEmpty(playerId))
+            throw new ArgumentNullException(nameof(playerId));
+        
         if (limiter is not null)
             await limiter.ControlRequest();
 
-        const string basePath = "/lol/match/v5/matches/by-puuid";
-        if (string.IsNullOrEmpty(playerId))
-            throw new ArgumentNullException(nameof(playerId));
+        var response = await get(
+            "/lol/match/v5/matches/by-puuid", 
+            playerId, "ids", 
+            q("start", start), q("count", count)
+        );
 
-        var response = await get(basePath, playerId, "ids");
         if (!response.IsSuccessStatusCode)
             throw new RequestErrorException(response.StatusCode, "");
-        
         return await response.Content.ReadFromJsonAsync<string[]>();
     }
-    
+
     private async Task<HttpResponseMessage> get(params object[] data)
     {
         var path = buildPath(data);
         return await http.GetAsync(path);
     }
 
+    internal class QueryParameter
+    {
+        public string Value { get; set; }
+    }
+
+    private QueryParameter q(string key, object value)
+    {
+        if (value is null)
+            return null;
+        
+        return new() { Value = $"{key}={format(value)}" };
+    }
+
     private string format(object value)
         => value switch
         {
-            _ => value.ToString()
+            QueryParameter p => p.Value,
+            _ => value?.ToString()
         };
 
     private string buildPath(params object[] data)
-        => buildPath(data.Select(format).ToArray());
-
-    private string buildPath(params string[] pathData)
     {
-        var basePath = Path.Combine(pathData);
-        return basePath + $"?api_key={this.ApiKey}";
-    }
+        var values = data
+            .Append(q("api_key", this.ApiKey))
+            .Where(data => data is not null);
+        
+        var pathEl = values
+            .TakeWhile(p => p is not QueryParameter)
+            .Select(format)
+            .ToArray();
+        var path = Path.Combine(pathEl);
 
+        var queryEl = values
+            .SkipWhile(p => p is not QueryParameter)
+            .Select(format)
+            .ToArray();
+        if (queryEl.Length == 0)
+            return path;
+        
+        return path + "?" + string.Join('&', queryEl);
+    }
 }
