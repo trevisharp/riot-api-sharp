@@ -3,11 +3,13 @@
  */
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Threading.Tasks;
 
 namespace RiotApi;
 
+/// <summary>
+/// Represents a ApiKey to Riot Developer Plataform.
+/// </summary>
 public class ApiKey
 {
     internal string key;
@@ -32,7 +34,7 @@ public class ApiKey
     }
 
     public static async Task<ApiKey> FromEnv()
-        => await FromEnv(string.Empty);
+        => await FromEnv(".env");
 
     private static (string key, string value) extractKeyValue(string value)
     {
